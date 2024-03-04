@@ -1,12 +1,15 @@
 use log::*;
-use screeps_arena::{
-    constants::{prototypes, Part},
-    game,
-    prelude::*,
-};
+use screeps_arena::game;
 use wasm_bindgen::prelude::*;
 
 mod logging;
+
+#[cfg(feature = "arena-collect-and-control")]
+mod collect;
+#[cfg(feature = "arena-capture-the-flag")]
+mod ctf;
+#[cfg(feature = "arena-spawn-and-swamp")]
+mod swamp;
 
 fn setup() {
     logging::setup_logging(logging::Info);
@@ -23,38 +26,19 @@ pub fn tick() {
     }
     warn!("hello arena! {}", tick);
 
-    let flag = prototypes::FLAG;
-
     let info = game::arena_info();
     warn!("arena_info: {:?}", info);
 
-    // strategy for spawn and swamp arena, which will conditionally compile in
-    // only when this feature is enabled for the crate
+    #[cfg(feature = "arena-capture-the-flag")]
+    {
+        ctf::tick();
+    }
     #[cfg(feature = "arena-spawn-and-swamp")]
     {
-        let mut enemy_spawn = None;
-        let spawns = game::utils::get_objects_by_prototype(prototypes::STRUCTURE_SPAWN);
-        warn!("spawns {}", spawns.len());
-        for spawn in spawns {
-            if spawn.my().unwrap_or(false) {
-                spawn.spawn_creep(&[Part::Move, Part::Attack]);
-            } else {
-                enemy_spawn = Some(spawn);
-            }
-        }
-
-        let creeps = game::utils::get_objects_by_prototype(prototypes::CREEP);
-        warn!("creeps {}", creeps.len());
-        for creep in creeps {
-            if creep.my() {
-                match &enemy_spawn {
-                    Some(t) => {
-                        creep.move_to(t.as_ref(), None);
-                        creep.attack(t);
-                    }
-                    None => {}
-                }
-            }
-        }
+        swamp::tick();
+    }
+    #[cfg(feature = "arena-collect-and-control")]
+    {
+        collect::tick();
     }
 }
